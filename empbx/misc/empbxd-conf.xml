@@ -16,18 +16,20 @@
         </users>
 
         <gateways>
-    	    <!--
             <gateway name="pstn">
-                <param name="username" value="pstn"/>
+                <param name="username" value="1019"/>
                 <param name="password" value="secret123"/>
                 <param name="transport" value="udp"/>
-                <param name="domain" value="10.1.2.3"/>
+                <param name="domain" value="10.0.9.249"/>
+                <!--
+                <param name="domain" value="example.com"/>
+                <param name="outbound" value="sip:1.2.3.4"/>
+                -->
             </gateway>
-	    -->
         </gateways>
 
         <dialplan>
-	    <rule name="pstn-in"  field="dst-number" expression="1019" app="bridge" data="user/1001" />
+            <rule name="pstn-in"  field="dst-number" expression="1019" app="bridge" data="user/1001" />
             <rule name="pstn-out" field="dst-number" expression="^(1234567)$" app="bridge" data="gateway/pstn/$1" />
             <rule name="intercom" field="dst-number" expression="/^(10[01][0-9])$/" app="bridge" data="user/$1" />
         </dialplan>

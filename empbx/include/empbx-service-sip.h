@@ -74,9 +74,9 @@ typedef enum {
 
 typedef struct {
     void                    *data;
-    bool                    destroy_data;
+    bool                    destroyable; // destroy_data;
     empbx_xuser_data_type_e type;
-} empbx_xused_data_t;
+} empbx_xuser_data_t;
 
 typedef struct {
     empbx_dialplan_rule_t   *rule;          // refs
@@ -121,7 +121,7 @@ bool empbx_dialplan_application_take(empbx_dialplan_app_t *app);
 void empbx_dialplan_application_release(empbx_dialplan_app_t *app);
 
 /* common */
-empbx_xused_data_t *empbx_xuser_data_alloc(void *data, empbx_xuser_data_type_e type, bool destroy_data);
+empbx_xuser_data_t *empbx_xuser_data_alloc(void *data, empbx_xuser_data_type_e type, bool destroy_data);
 empbx_status_t empbx_extract_number_from_uri(char *buf, size_t bufsz, const char *uri_str);
 
 #endif

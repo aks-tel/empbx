@@ -67,7 +67,7 @@ static bool check_nonce(const pl_t *nonce, const char *realm, const sip_msg_t *m
     bool result = false;
 
     if(!nonce || !msg || !realm)  {
-        return EMPBX_STATUS_FALSE;
+        return false;
     }
     if(npl.l < AUTH_NONCE_LMIN_LEN) {
         return false;
@@ -150,12 +150,12 @@ empbx_status_t empbx_authentication_challenge_check(empbx_user_entry_t *user, co
         return EMPBX_STATUS_FALSE;
     }
 
-    if(pl_strdup(&from_realm, &msg->from.uri.host)) {
-        mem_fail_goto_status(EMPBX_STATUS_FALSE, out);
-    }
-
     if(httpauth_digest_response_decode(&resp, &ahdr->val)) {
         return EMPBX_STATUS_FALSE;
+    }
+
+    if(pl_strdup(&from_realm, &msg->from.uri.host)) {
+        mem_fail_goto_status(EMPBX_STATUS_FALSE, out);
     }
 
     if(!check_nonce(&resp.nonce, from_realm, msg)) {

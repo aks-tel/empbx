@@ -1,52 +1,51 @@
 --- baresip-4.5.0/include/baresip.h	2026-01-27 18:41:34.000000000 +0400
-+++ baresip-4.5.0/include/baresip-new.h	2026-03-07 07:24:23.141954857 +0400
-@@ -291,6 +291,9 @@
- enum sip_transp call_transp(const struct call *call);
++++ baresip-4.5.0/include/baresip-new.h	2026-07-24 18:50:25.823068651 +0400
+@@ -292,6 +292,7 @@
  enum sdp_neg_state call_sdp_neg_state(const struct call *call);
  bool call_sdp_change_allowed(const struct call *call);
-+void call_xuser_data_set(struct call *call, void *data, bool destroy);
-+void *call_xuser_data_get(struct call *call);
-+
  
++
  /**
   * Command parameter parse helpers
-@@ -1016,7 +1019,8 @@
- void ua_remove_extension(struct ua *ua, const char *extension);
+  */
+@@ -1017,7 +1018,6 @@
  bool ua_req_allowed(const struct ua *ua, const struct sip_msg *msg);
  bool ua_req_check_origin(const struct ua *ua, const struct sip_msg *msg);
--
-+void ua_xuser_data_set(struct ua *ua, void *data, bool destroy);
-+void *ua_xuser_data_get(struct ua *ua);
  
+-
  /* One instance */
  int  ua_init(const char *software, bool udp, bool tcp, bool tls);
-@@ -1030,6 +1034,7 @@
- void uag_enable_sip_trace(bool enable);
- int  uag_reset_transp(bool reg, bool reinvite);
- void uag_set_sub_handler(sip_msg_h *subh);
-+void uag_set_custom_sip_handler(sip_msg_h *handler);
- int  uag_set_extra_params(const char *eprm);
- int  uag_enable_transport(enum sip_transp tp, bool en);
- struct ua   *uag_find(const struct pl *cuser);
-@@ -1474,7 +1479,8 @@
- struct config_audio *audio_config(struct audio *au);
+ void ua_close(void);
+@@ -1475,7 +1475,6 @@
  bool audio_txtelev_empty(const struct audio *au);
  void audio_call_telev_handler(const struct audio *au, int key, bool end);
--
-+void audio_xuser_data_set(struct audio *au, void *data, bool destroy);
-+void *audio_xuser_data_get(struct audio *au);
  
+-
  /*
   * Video stream
-@@ -1512,6 +1518,8 @@
- const struct vidcodec *video_codec(const struct video *vid, bool tx);
- void video_sdp_attr_decode(struct video *v);
- void video_req_keyframe(struct video *vid);
-+void video_xuser_data_set(struct video *vid, void *data, bool destroy);
-+void *video_xuser_data_get(struct video *vid);
+  */
+@@ -1915,6 +1914,21 @@
+ 		    const struct odict *od);
  
- double video_calc_seconds(uint64_t rtp_ts);
- double video_timestamp_to_seconds(uint64_t timestamp);
+ 
++/*
++ * empbx extensions
++ */
++void empbx_baresip_uag_set_custom_sip_handler(sip_msg_h *handler);
++
++void empbx_baresip_ua_set_xdata(struct ua *ua, void *data, bool destroy);
++void *empbx_baresip_ua_get_xdata(const struct ua *ua);
++void empbx_baresip_call_set_xdata(struct call *call, void *data, bool destroy);
++void *empbx_baresip_get_xdata(struct call *call);
++void empbx_baresip_audio_set_xdata(struct audio *au, void *data, bool destroy);
++void *empbx_baresip_audio_get_xdata(const struct audio *au);
++void empbx_baresip_video_set_xdata(struct video *vid, void *data, bool destroy);
++void *empbx_baresip_video_get_xdata(const struct video *vid);
++
++
+ #ifdef __cplusplus
+ }
+ #endif
 --- baresip-4.5.0/src/core.h	2026-01-27 18:41:34.000000000 +0400
 +++ baresip-4.5.0/src/core-new.h	2026-02-20 13:53:45.496352551 +0400
 @@ -391,6 +391,7 @@
@@ -58,7 +57,7 @@
  	bool nodial;                   /**< Prevent outgoing calls          */
  	void *arg;                     /**< UA Exit handler argument        */
 --- baresip-4.5.0/src/uag.c	2026-01-27 18:41:34.000000000 +0400
-+++ baresip-4.5.0/src/uag-new.c	2026-03-05 03:38:20.932187439 +0400
++++ baresip-4.5.0/src/uag-new.c	2026-07-24 19:02:02.753534953 +0400
 @@ -204,15 +204,21 @@
  
  	(void)arg;
@@ -86,27 +85,26 @@
  
  	if (!ua_req_check_origin(ua, msg)) {
  		(void)sip_treply(NULL, uag_sip(), msg, 403, "Forbidden");
-@@ -1307,3 +1313,12 @@
+@@ -1307,3 +1313,11 @@
  {
  	return uag.subh;
  }
 +
 +/**
-+ * akstel.org
-+ * this handler is procesing in request_handler()
++ * empbx
 + */
-+void uag_set_custom_sip_handler(sip_msg_h *handler)
++void empbx_baresip_uag_set_custom_sip_handler(sip_msg_h *handler)
 +{
 +	uag.xsiph = handler;
 +}
 --- baresip-4.5.0/src/ua.c	2026-01-27 18:41:34.000000000 +0400
-+++ baresip-4.5.0/src/ua-new.c	2026-03-04 23:40:53.351792307 +0400
++++ baresip-4.5.0/src/ua-new.c	2026-07-24 19:01:30.006734466 +0400
 @@ -30,6 +30,8 @@
  	struct list custom_hdrs;     /**< List of outgoing headers           */
  	char *ansval;                /**< SIP auto answer value              */
  	struct sa dst;               /**< Current destination address        */
-+	void    *xuser_data;         /** akstel.org */
-+	bool    xud_destroy;         /** akstel.org */
++	void    *xuser_data;         /** empbx */
++	bool    xud_destroy;         /** empbx */
  };
  
  struct ua_xhdr_filter {
@@ -115,37 +113,36 @@
  	mem_deref(ua->acc);
  
 +	if(ua->xud_destroy) {
-+        mem_deref(ua->xuser_data);
++    	    mem_deref(ua->xuser_data);
 +	}
 +
  	if (uag_delayed_close() && list_isempty(uag_list())) {
  		sip_close(uag_sip(), false);
  	}
-@@ -2355,3 +2361,16 @@
+@@ -2355,3 +2361,15 @@
  
  	return false;
  }
 +
-+/* akstel.org */
-+void ua_xuser_data_set(struct ua *ua, void *data, bool destroy) {
++/* empbx */
++void empbx_baresip_ua_set_xdata(struct ua *ua, void *data, bool destroy) {
 +	if (!ua) return;
 +    ua->xuser_data = data;
 +    ua->xud_destroy = destroy;
 +}
 +
-+/* akstel.org */
-+void *ua_xuser_data_get(struct ua *ua) {
++void *empbx_baresip_ua_get_xdata(struct ua *ua) {
 +    return ua ? ua->xuser_data : NULL;
 +}
 +
 --- baresip-4.5.0/src/call.c	2026-01-27 18:41:34.000000000 +0400
-+++ baresip-4.5.0/src/call-new.c	2026-03-04 23:26:55.689887299 +0400
++++ baresip-4.5.0/src/call-new.c	2026-07-24 18:56:33.381600861 +0400
 @@ -84,6 +84,8 @@
  	bool use_video;
  	bool use_rtp;
  	struct pl *user_data;      /**< User data related to the call       */
-+	void    *xuser_data;       /** akstel.org */
-+	bool    xud_destroy;       /** if true will be destroyed */
++	void    *xuser_data;       /** empbx */
++	bool    xud_destroy;       /** empbx */
  };
  
  
@@ -154,37 +151,36 @@
  	mem_deref(call->user_data);
  
 +	if(call->xud_destroy) {
-+        mem_deref(call->xuser_data);
++    	    mem_deref(call->xuser_data);
 +	}
 +
  	list_flush(&call->custom_hdrs);
  }
  
-@@ -3454,3 +3460,16 @@
+@@ -3454,3 +3460,15 @@
  		|| (sdp_state == SDP_NEG_NONE
  		|| sdp_state == SDP_NEG_REMOTE_OFFER);
  }
 +
-+/* akstel.org */
-+void call_xuser_data_set(struct call *call, void *data, bool destroy) {
-+	if (!call) return;
++/* empbx */
++void empbx_baresip_call_set_xdata(struct call *call, void *data, bool destroy) {
++    if (!call) return;
 +
 +    call->xuser_data = data;
 +    call->xud_destroy = destroy;
 +}
 +
-+/* akstel.org */
-+void *call_xuser_data_get(struct call *call) {
++void *empbx_baresip_call_get_xdata(struct call *call) {
 +    return call ? call->xuser_data : NULL;
 +}
 --- baresip-4.5.0/src/audio.c	2026-01-27 18:41:34.000000000 +0400
-+++ baresip-4.5.0/src/audio-new.c	2026-03-07 07:20:55.294457172 +0400
++++ baresip-4.5.0/src/audio-new.c	2026-07-24 18:54:29.798128742 +0400
 @@ -133,6 +133,8 @@
  	audio_level_h *levelh;        /**< Audio level handler             */
  	audio_err_h *errh;            /**< Audio error handler             */
  	void *arg;                    /**< Handler argument                */
-+	void *xuser_data;             /** akstel.org */
-+	bool xud_destroy;             /** if true will be destroyed */
++	void *xuser_data;             /** empbx */
++	bool xud_destroy;             /** empbx */
  };
  
  
@@ -193,54 +189,62 @@
  	mem_deref(a->aur);
  
 +	if(a->xud_destroy) {
-+        mem_deref(a->xuser_data);
++    	    mem_deref(a->xuser_data);
 +	}
 +
  	mem_deref(a->tx.mtx);
  }
  
-@@ -1932,3 +1938,16 @@
+@@ -1932,3 +1938,14 @@
  {
  	return au ? &au->cfg : NULL;
  }
 +
-+/* akstel.org */
-+void audio_xuser_data_set(struct audio *au, void *data, bool destroy) {
-+	if (!au) return;
++/* empbx */
++void empbx_baresip_audio_set_xdata(struct audio *au, void *data, bool destroy) {
++    if (!au) return;
 +
 +    au->xuser_data = data;
 +    au->xud_destroy = destroy;
 +}
-+
-+/* akstel.org */
-+void *audio_xuser_data_get(struct audio *au) {
++void *empbx_baresip_audio_get_xdata(struct audio *au) {
 +    return au ? au->xuser_data : NULL;
 +}
 --- baresip-4.5.0/src/video.c	2026-01-27 18:41:34.000000000 +0400
-+++ baresip-4.5.0/src/video-new.c	2026-03-07 07:26:43.780204441 +0400
++++ baresip-4.5.0/src/video-new.c	2026-07-24 18:55:11.956584098 +0400
 @@ -169,6 +169,8 @@
  	bool nack_pli;          /**< Send NACK/PLI to peer                */
  	video_err_h *errh;      /**< Error handler                        */
  	void *arg;              /**< Error handler argument               */
-+	void *xuser_data;       /** akstel.org */
-+	bool xud_destroy;       /** if true will be destroyed */
++	void *xuser_data;       /** empbx */
++	bool xud_destroy;       /** empbx */
  };
  
  
-@@ -1965,3 +1967,16 @@
+@@ -310,6 +312,10 @@
+ 	mtx_unlock(&vrx->lock);
+ 	mtx_destroy(&vrx->lock);
+ 
++	if(v->xud_destroy) {
++    	    mem_deref(v->xuser_data);
++	}
++
+ 	tmr_cancel(&v->tmr);
+ 	mem_deref(v->strm);
+ 	mem_deref(v->peer);
+@@ -1965,3 +1971,15 @@
  	vid->vtx.picup = true;
  	mtx_unlock(vid->vtx.lock_enc);
  }
 +
-+/* akstel.org */
-+void video_xuser_data_set(struct video *vid, void *data, bool destroy) {
-+	if (!vid) return;
++/* empbx */
++void empbx_baresip_video_set_xdata(struct video *vid, void *data, bool destroy) {
++    if (!vid) return;
 +
 +    vid->xuser_data = data;
 +    vid->xud_destroy = destroy;
 +}
 +
-+/* akstel.org */
-+void *video_xuser_data_get(struct video *vid) {
++void *empbx_baresip_video_get_xdata(struct video *vid) {
 +    return vid ? vid->xuser_data : NULL;
 +}

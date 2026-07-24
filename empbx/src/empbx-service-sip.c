@@ -84,7 +84,7 @@ static bool ua_sip_request_handler(const sip_msg_t *msg, void *arg) {
     }
 
     if(!pl_strcmp(&msg->met, "INVITE")) {
-        empbx_xused_data_t *xuserd = NULL;
+        empbx_xuser_data_t *xuserd = NULL;
         empbx_registration_gateway_t *gwreg = NULL;
         empbx_registration_user_t *sureg = NULL;
         bool fl_release_entity = false;
@@ -97,7 +97,7 @@ static bool ua_sip_request_handler(const sip_msg_t *msg, void *arg) {
         pl_strdup(&to_realm, &msg->to.uri.host);
 
         if(from_ua) {
-            xuserd = (empbx_xused_data_t *)ua_xuser_data_get(from_ua);
+            xuserd = (empbx_xuser_data_t *)empbx_baresip_ua_get_xdata(from_ua);
             if(!xuserd) {
                 log_error("Call rejected (%s@%s) => (%s@%s) [unknown originator]", from_user_id, from_realm, to_user_id, to_realm);
                 sip_treply(NULL, uag_sip(), msg, 404, "Not Found");
@@ -271,7 +271,7 @@ out:
 }
 
 static void ua_bsevent_handler(enum bevent_ev ev, struct bevent *event, void *arg) {
-    empbx_xused_data_t *xuserd = NULL;
+    empbx_xuser_data_t *xuserd = NULL;
     call_t *call = NULL;
     ua_t *uua = NULL;
 
@@ -281,7 +281,7 @@ static void ua_bsevent_handler(enum bevent_ev ev, struct bevent *event, void *ar
 
     uua = bevent_get_ua(event);
     call = bevent_get_call(event);
-    xuserd = (empbx_xused_data_t *)ua_xuser_data_get(uua);
+    xuserd = (empbx_xuser_data_t *)empbx_baresip_ua_get_xdata(uua);
 
     switch(ev) {
         case BEVENT_CALL_INCOMING: {
@@ -441,7 +441,7 @@ empbx_status_t empbx_service_sip_start() {
 
     sipd_runtime.fl_ua_init_ok = true;
     bevent_register(ua_bsevent_handler, NULL);
-    uag_set_custom_sip_handler(ua_sip_request_handler);
+    empbx_baresip_uag_set_custom_sip_handler(ua_sip_request_handler);
 
     bsmod_load__g729();
     empbx_application_register__bridge();

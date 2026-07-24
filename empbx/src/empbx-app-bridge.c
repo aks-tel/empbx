@@ -38,7 +38,7 @@ static void session_handler_call_events(call_t *call, enum call_event ev, const 
 
 static empbx_status_t perform_handler(ua_t *ua, call_t *call, const char *args) {
     empbx_status_t status = EMPBX_STATUS_SUCCESS;
-    empbx_xused_data_t *xuserd = NULL;
+    empbx_xuser_data_t *xuserd = NULL;
     empbx_session_t *session = NULL;
     char *args_local = NULL;
 
@@ -47,7 +47,7 @@ static empbx_status_t perform_handler(ua_t *ua, call_t *call, const char *args) 
         goto out;
     }
 
-    xuserd = (empbx_xused_data_t *)ua_xuser_data_get(ua);
+    xuserd = (empbx_xuser_data_t *)empbx_baresip_ua_get_xdata(ua);
     if(!xuserd) {
         log_error("Illegal UA state");
         empbx_goto_status(EMPBX_STATUS_FALSE, out);
@@ -94,10 +94,10 @@ static empbx_status_t perform_handler(ua_t *ua, call_t *call, const char *args) 
             video_set_devicename(call_video(session->lega), deva, devb);
             video_set_devicename(call_video(session->legb), devb, deva);
 
-            audio_xuser_data_set(call_audio(session->lega), session, false);
-            audio_xuser_data_set(call_audio(session->legb), session, false);
-            video_xuser_data_set(call_video(session->lega), session, false);
-            video_xuser_data_set(call_video(session->legb), session, false);
+            empbx_baresip_audio_set_xdata(call_audio(session->lega), session, false);
+            empbx_baresip_audio_set_xdata(call_audio(session->legb), session, false);
+            empbx_baresip_video_set_xdata(call_video(session->lega), session, false);
+            empbx_baresip_video_set_xdata(call_video(session->legb), session, false);
 
             call_set_handlers(session->lega, session_handler_call_events, session_handler_dtmf, session);
             call_set_handlers(session->legb, session_handler_call_events, session_handler_dtmf, session);
@@ -158,10 +158,10 @@ static empbx_status_t perform_handler(ua_t *ua, call_t *call, const char *args) 
             video_set_devicename(call_video(session->lega), deva, devb);
             video_set_devicename(call_video(session->legb), devb, deva);
 
-            audio_xuser_data_set(call_audio(session->lega), session, false);
-            audio_xuser_data_set(call_audio(session->legb), session, false);
-            video_xuser_data_set(call_video(session->lega), session, false);
-            video_xuser_data_set(call_video(session->legb), session, false);
+            empbx_baresip_audio_set_xdata(call_audio(session->lega), session, false);
+            empbx_baresip_audio_set_xdata(call_audio(session->legb), session, false);
+            empbx_baresip_video_set_xdata(call_video(session->lega), session, false);
+            empbx_baresip_video_set_xdata(call_video(session->legb), session, false);
 
             call_set_handlers(session->lega, session_handler_call_events, session_handler_dtmf, session);
             call_set_handlers(session->legb, session_handler_call_events, session_handler_dtmf, session);

@@ -163,7 +163,7 @@ empbx_status_t empbx_registration_user_update(empbx_registration_user_t *reg, ch
         mbuf_strdup(mbuf, &reg->ua_conf, mbuf->end);
         if(reg->ua_conf) {
             if(ua_alloc(&reg->ua, reg->ua_conf) == LIBRE_SUCCESS) {
-                 ua_xuser_data_set(reg->ua, empbx_xuser_data_alloc(reg, EMPBX_XUD_USER, false), true);
+                 empbx_baresip_ua_set_xdata(reg->ua, empbx_xuser_data_alloc(reg, EMPBX_XUD_USER, false), true);
                  ua_set_catchall(reg->ua, true);
             } else {
                 log_error("ua_alloc() failed");
@@ -271,7 +271,7 @@ empbx_status_t empbx_registration_user_new(char *user_id, char *realm, char *con
     mtx_lock(sipd_runtime.baresip_mutex);
     if(ua_alloc(&reg->ua, reg->ua_conf) == LIBRE_SUCCESS) {
         ua_set_catchall(reg->ua, true);
-        ua_xuser_data_set(reg->ua, empbx_xuser_data_alloc(reg, EMPBX_XUD_USER, false), true);
+        empbx_baresip_ua_set_xdata(reg->ua, empbx_xuser_data_alloc(reg, EMPBX_XUD_USER, false), true);
     } else {
         log_error("ua_alloc() failed");
         ua_failed = true;

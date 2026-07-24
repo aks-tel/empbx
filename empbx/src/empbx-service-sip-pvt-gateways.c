@@ -125,7 +125,7 @@ empbx_status_t empbx_registration_gateway_add(empbx_gateway_entry_t *entry) {
         account_t *acc = ua_account(reg->ua);
         if(acc) {
             ua_set_catchall(reg->ua, true);
-            ua_xuser_data_set(reg->ua, empbx_xuser_data_alloc(reg, EMPBX_XUD_GATEWAY, false), true);
+            empbx_baresip_ua_set_xdata(reg->ua, empbx_xuser_data_alloc(reg, EMPBX_XUD_GATEWAY, false), true);
             if(account_regint(acc)) {
                 if(!account_prio(acc)) {
                     err = ua_register(reg->ua);
